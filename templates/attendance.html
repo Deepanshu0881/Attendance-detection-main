@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Attendance System</title>
+     <style>
+        body { font-family: sans-serif; margin: 20px; }
+        #videoFeed { border: 1px solid black; margin-bottom: 10px; }
+        #status { margin-top: 10px; font-weight: bold; color: blue; }
+    </style>
+</head>
+<body>
+    <h1>Live Attendance</h1>
+    <div id="status">Loading known faces and starting camera...</div>
+
+    <img id="videoFeed" src="{{ url_for('video_feed_attendance') }}" alt="Attendance Feed Loading..." width="640" height="480">
+
+    <div><a href="/">Back to Home</a></div>
+
+    <script>
+        // Optional: Add a message when the stream starts or if it fails
+        const videoFeed = document.getElementById('videoFeed');
+        const statusDiv = document.getElementById('status');
+
+        videoFeed.onload = function() {
+            statusDiv.textContent = "Attendance system running. Looking for faces...";
+            statusDiv.style.color = 'green';
+        };
+        videoFeed.onerror = function() {
+            statusDiv.textContent = "Error loading video stream. Is the server running and camera accessible?";
+            statusDiv.style.color = 'red';
+        };
+    </script>
+</body>
+</html>

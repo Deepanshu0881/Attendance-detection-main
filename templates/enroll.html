@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Enroll Student</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        #videoFeed { border: 1px solid black; margin-bottom: 10px; }
+        #status { margin-top: 10px; font-weight: bold; min-height: 20px; } /* Added min-height */
+        label, input, button { margin-bottom: 10px; font-size: 1em; }
+    </style>
+</head>
+<body>
+    <h1>Enroll New Student</h1>
+    <div>
+        <label for="studentName">Student Name:</label>
+        <input type="text" id="studentName" name="studentName">
+        <button id="startEnrollBtn">Start Enrollment Camera</button>
+        <button id="captureBtn" disabled>Capture Image (<span id="captureCount">0</span>/<span id="totalCaptures">?</span>)</button>
+    </div>
+
+    <img id="videoFeed" src="" alt="Video Feed Loading..." width="640" height="480">
+
+    <div id="status">Enter name and click 'Start Enrollment Camera'.</div>
+
+    <a href="/">Back to Home</a>
+
+    <script>
+        const studentNameInput = document.getElementById('studentName');
+        const startEnrollBtn = document.getElementById('startEnrollBtn');
+        const captureBtn = document.getElementById('captureBtn');
+        const videoFeed = document.getElementById('videoFeed');
+        const statusDiv = document.getElementById('status');
+        const captureCountSpan = document.getElementById('captureCount');
+        const totalCapturesSpan = document.getElementById('totalCaptures');
+
+        let totalCapturesNeeded = 0; // Will be fetched from server
+
+        startEnrollBtn.addEventListener('click', () => {
+            const name = studentNameInput.value.trim();
+            if (!name) {
+                statusDiv.textContent = "Error: Student name cannot be empty.";
+                statusDiv.style.color = 'red';
+                return;
+            }
+            // Disable input and start button, enable capture button
+            studentNameInput.disabled = true;
+            startEnrollBtn.disabled = true;
+
+
+            // Fetch capture count from server and start video feed
+            fetch('/start_enrollment?name=' + encodeURIComponent(name))
+                .then(response => {
+                    if (!response.ok) {
+                         // Read error message from response body if available
+                        return response.text().then(text => {
+                            throw new Error(text || `HTTP error! status: ${response.status}`);
+                        });
+                    }
+                    return response.json();
+                 })
+                .then(data => {
+                    if (data.error) {
+                         throw new Error(data.error);
+                    }
+                    totalCapturesNeeded = data.capture_count;
+                    totalCapturesSpan.textContent = totalCapturesNeeded;
+                    captureCountSpan.textContent = data.current_count || 0; // Initialize count from server
+                    videoFeed.src = '/video_feed_enroll?name=' + encodeURIComponent(name) + '&t=' + Date.now(); // Add timestamp to prevent caching
+                    statusDiv.textContent = `Camera started for ${name}. Press 'Capture Image'.`;
+                    statusDiv.style.color = 'green';
+                     captureBtn.disabled = false;
+                     if ((data.current_count || 0) >= totalCapturesNeeded) {
+                         captureBtn.disabled = true; // Disable if already complete
+                         statusDiv.textContent = `Enrollment already complete for ${name}.`;
+                     }
+                })
+                .catch(error => {
+                    statusDiv.textContent = `Error starting enrollment: ${error.message}`;
+                    statusDiv.style.color = 'red';
+                    studentNameInput.disabled = false;
+                    startEnrollBtn.disabled = false;
+                     captureBtn.disabled = true;
+                });
+        });
+
+        captureBtn.addEventListener('click', () => {
+            const name = studentNameInput.value.trim();
+            if (!name) return; // Should not happen if button is enabled
+
+            captureBtn.disabled = true; // Disable temporarily
+            statusDiv.textContent = "Capturing...";
+            statusDiv.style.color = 'orange';
+
+            fetch('/capture_enrollment?name=' + encodeURIComponent(name), { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        captureCountSpan.textContent = data.captured_count;
+                        statusDiv.textContent = `Image ${data.captured_count}/${totalCapturesNeeded} captured for ${name}.`;
+                        statusDiv.style.color = 'green';
+                        if (data.captured_count >= totalCapturesNeeded) {
+                             statusDiv.textContent = `Enrollment complete for ${name}! ${data.captured_count} images saved.`;
+                             captureBtn.disabled = true; // Keep disabled
+                        } else {
+                           captureBtn.disabled = false; // Re-enable for next capture
+                        }
+                    } else {
+                        statusDiv.textContent = "Error capturing image: " + data.error;
+                        statusDiv.style.color = 'red';
+                        captureBtn.disabled = false; // Re-enable on error
+                    }
+                })
+                .catch(error => {
+                    statusDiv.textContent = "Error sending capture request: " + error;
+                    statusDiv.style.color = 'red';
+                    captureBtn.disabled = false; // Re-enable on error
+                });
+        });
+    </script>
+</body>
+</html>

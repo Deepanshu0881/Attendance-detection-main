@@ -1,0 +1,10 @@
+dlib==19.24.0
+opencv-python
+face_recognition
+numpy==1.26.4
+pandas
+flask
+streamlit
+Pillow
+cmake==3.21.0
+
